@@ -81,11 +81,17 @@ insufficient. ~20 emails/day is a tiny, non-real-time workload.
     `869d4ec22cbd42a97a372fc0a2065bdf5a6d7e80d6185bf1c0054149ea94e03f@group.calendar.google.com`.
   - The standalone agent needs its own Google Cloud project + Calendar API +
     OAuth "desktop" credential, with a one-time browser sign-in on the Mini PC.
-- **Notifications (Discord):** existing setup is `esparks/hq-agent-org`. The
-  agent posts via **incoming webhooks** (no bot needed):
-  - Bills → `#finances`
-  - Appointments + vacations → `#personal`
-  - Webhook URLs stored in local config only.
+    NOTE: nothing to reuse — the Mini PC's existing Google Calendar access is via
+    the claude.ai MCP connector (account-scoped), which a standalone Python
+    service cannot call. A fresh `credentials.json`/`token.json` is required.
+- **Notifications (Discord):** reuses the existing hq-agent-org Discord **bot**
+  (investigation on the Mini PC confirmed a bot, not webhooks). Default
+  `DISCORD_MODE=bot`; the service posts via the Discord REST API using the bot
+  token from `C:\Users\erich\.claude\channels\discord\.env` (`DISCORD_BOT_TOKEN`).
+  - Bills → `#finances` (channel id `1492035391711215676`)
+  - Appointments + vacations → `#personal` (channel id `1492035190841671802`)
+  - Bot token stored in local `config.env` only. A `webhook` mode is also
+    available as an alternative.
 
 ---
 

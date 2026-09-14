@@ -31,13 +31,21 @@ IMAP_PASSWORD=your-mailbox-password-here
 That's the only place the password lives. The IMAP host/port/username are
 already filled in (`dfw-r02.nixins.com`, `143`, STARTTLS, `erich@erichsparks.com`).
 
-### ▶ Discord webhooks (reuse your existing ones)
+### ▶ Discord (reuse your existing bot)
+Default mode is `bot` — it posts as your existing hq-agent-org Discord bot, so
+no new webhooks are needed. In `config.env`:
 ```
-DISCORD_WEBHOOK_FINANCES=https://discord.com/api/webhooks/....   (bills -> #finances)
-DISCORD_WEBHOOK_PERSONAL=https://discord.com/api/webhooks/....   (appts/vacations -> #personal)
+DISCORD_MODE=bot
+DISCORD_BOT_TOKEN=<paste value of DISCORD_BOT_TOKEN>
+DISCORD_CHANNEL_FINANCES=1492035391711215676   (already prefilled)
+DISCORD_CHANNEL_PERSONAL=1492035190841671802   (already prefilled)
 ```
-If you need to create a webhook: Discord → channel → Edit Channel →
-Integrations → Webhooks → New Webhook → Copy URL.
+Get the token from `C:\Users\erich\.claude\channels\discord\.env` (the
+`DISCORD_BOT_TOKEN` line) and paste the value here. The bot is already in the
+server and allowlisted for both channels.
+
+_Alternative:_ set `DISCORD_MODE=webhook` and fill `DISCORD_WEBHOOK_FINANCES` /
+`DISCORD_WEBHOOK_PERSONAL` instead, if you'd rather use webhooks.
 
 ### ▶ Google Calendar (reuse your existing OAuth)
 Put your existing OAuth **client** file in the project folder as

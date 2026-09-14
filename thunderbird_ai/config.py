@@ -43,6 +43,10 @@ class Config:
     gcal_bills_calendar_id: str
 
     # Discord
+    discord_mode: str
+    discord_bot_token: str
+    discord_channel_finances: str
+    discord_channel_personal: str
     discord_webhook_finances: str
     discord_webhook_personal: str
 
@@ -78,6 +82,10 @@ class Config:
             google_token_file=_resolve(os.getenv("GOOGLE_TOKEN_FILE", "token.json")),
             gcal_personal_calendar_id=os.getenv("GCAL_PERSONAL_CALENDAR_ID", "sparkserich@gmail.com"),
             gcal_bills_calendar_id=os.getenv("GCAL_BILLS_CALENDAR_ID", ""),
+            discord_mode=os.getenv("DISCORD_MODE", "bot").strip().lower(),
+            discord_bot_token=os.getenv("DISCORD_BOT_TOKEN", ""),
+            discord_channel_finances=os.getenv("DISCORD_CHANNEL_FINANCES", ""),
+            discord_channel_personal=os.getenv("DISCORD_CHANNEL_PERSONAL", ""),
             discord_webhook_finances=os.getenv("DISCORD_WEBHOOK_FINANCES", ""),
             discord_webhook_personal=os.getenv("DISCORD_WEBHOOK_PERSONAL", ""),
             confidence_threshold=float(os.getenv("CONFIDENCE_THRESHOLD", "0.6")),
@@ -95,10 +103,16 @@ class Config:
             problems.append("IMAP_USERNAME is empty.")
         if not self.gcal_bills_calendar_id:
             problems.append("GCAL_BILLS_CALENDAR_ID is empty.")
-        if not self.discord_webhook_finances:
-            problems.append("DISCORD_WEBHOOK_FINANCES is empty.")
-        if not self.discord_webhook_personal:
-            problems.append("DISCORD_WEBHOOK_PERSONAL is empty.")
+        if self.discord_mode == "bot":
+            if not self.discord_bot_token:
+                problems.append("DISCORD_BOT_TOKEN is empty (bot mode).")
+            if not self.discord_channel_finances or not self.discord_channel_personal:
+                problems.append("DISCORD_CHANNEL_FINANCES / DISCORD_CHANNEL_PERSONAL is empty (bot mode).")
+        elif self.discord_mode == "webhook":
+            if not self.discord_webhook_finances or not self.discord_webhook_personal:
+                problems.append("DISCORD_WEBHOOK_FINANCES / DISCORD_WEBHOOK_PERSONAL is empty (webhook mode).")
+        else:
+            problems.append(f"DISCORD_MODE must be 'bot' or 'webhook' (got '{self.discord_mode}').")
         if not self.google_credentials_file.exists() and not self.google_token_file.exists():
             problems.append(
                 f"Neither {self.google_credentials_file.name} nor "

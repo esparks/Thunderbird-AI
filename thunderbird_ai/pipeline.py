@@ -40,7 +40,14 @@ class Pipeline:
             cfg.imap_use_starttls, cfg.imap_exclude_folders,
         )
         self.extractor = OllamaExtractor(cfg.ollama_host, cfg.ollama_model)
-        self.notifier = DiscordNotifier(cfg.discord_webhook_finances, cfg.discord_webhook_personal)
+        self.notifier = DiscordNotifier(
+            mode=cfg.discord_mode,
+            bot_token=cfg.discord_bot_token,
+            channel_finances=cfg.discord_channel_finances,
+            channel_personal=cfg.discord_channel_personal,
+            webhook_finances=cfg.discord_webhook_finances,
+            webhook_personal=cfg.discord_webhook_personal,
+        )
         # Calendar is created lazily so a config/IMAP-only test run needs no Google auth.
         self._calendar: CalendarClient | None = None
 
