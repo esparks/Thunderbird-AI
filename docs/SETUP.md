@@ -64,6 +64,21 @@ run.bat --check
 ```
 Fix anything it reports (empty password, missing webhook, etc.).
 
+### Authorize Google (one time)
+```bat
+run.bat --auth
+```
+Opens a browser; sign in as **sparkserich@gmail.com** and approve. Writes
+`token.json`. (Requires sparkserich@gmail.com added as a Test user on the OAuth
+consent screen, or it 403s.)
+
+### Test Discord (optional)
+```bat
+run.bat --test-discord
+```
+Sends one message to #finances and one to #personal so you can confirm the bot
+token + channel IDs work.
+
 ## 4. Test safely (no changes made)
 Set `DRY_RUN=true` in `config.env`, then:
 ```bat

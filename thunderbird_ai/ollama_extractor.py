@@ -102,7 +102,7 @@ def _coerce(data: dict) -> Extraction:
 
 
 class OllamaExtractor:
-    def __init__(self, host: str, model: str, timeout: int = 120):
+    def __init__(self, host: str, model: str, timeout: int = 300):
         self.host = host
         self.model = model
         self.timeout = timeout
@@ -114,7 +114,7 @@ class OllamaExtractor:
             f"email received date: {email_date}\n"
             f"from: {sender}\n"
             f"subject: {subject}\n\n"
-            f"body:\n{body[:6000]}"
+            f"body:\n{body[:4000]}"
         )
         payload = {
             "model": self.model,
@@ -124,7 +124,8 @@ class OllamaExtractor:
             ],
             "stream": False,
             "format": SCHEMA,
-            "options": {"temperature": 0},
+            "keep_alive": "30m",  # keep the model loaded between emails
+            "options": {"temperature": 0, "num_predict": 400},
         }
         resp = requests.post(
             f"{self.host}/api/chat", json=payload, timeout=self.timeout

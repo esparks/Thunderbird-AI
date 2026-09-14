@@ -35,6 +35,7 @@ class Config:
     # Ollama
     ollama_host: str
     ollama_model: str
+    ollama_timeout: int
 
     # Google Calendar
     google_credentials_file: Path
@@ -78,6 +79,7 @@ class Config:
             lookback_days=int(os.getenv("LOOKBACK_DAYS", "1")),
             ollama_host=os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/"),
             ollama_model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+            ollama_timeout=int(os.getenv("OLLAMA_TIMEOUT", "300")),
             google_credentials_file=_resolve(os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")),
             google_token_file=_resolve(os.getenv("GOOGLE_TOKEN_FILE", "token.json")),
             gcal_personal_calendar_id=os.getenv("GCAL_PERSONAL_CALENDAR_ID", "sparkserich@gmail.com"),

@@ -39,7 +39,7 @@ class Pipeline:
             cfg.imap_host, cfg.imap_port, cfg.imap_username, cfg.imap_password,
             cfg.imap_use_starttls, cfg.imap_exclude_folders,
         )
-        self.extractor = OllamaExtractor(cfg.ollama_host, cfg.ollama_model)
+        self.extractor = OllamaExtractor(cfg.ollama_host, cfg.ollama_model, timeout=cfg.ollama_timeout)
         self.notifier = DiscordNotifier(
             mode=cfg.discord_mode,
             bot_token=cfg.discord_bot_token,

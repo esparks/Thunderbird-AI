@@ -10,6 +10,7 @@ from __future__ import annotations
 import email
 import imaplib
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from email.header import decode_header, make_header
@@ -26,6 +27,21 @@ class Email:
     sender: str
     subject: str
     body: str
+
+
+# IMAP LIST line looks like:  (\HasNoChildren) "." "INBOX.Sent"
+# -> flags in (), a delimiter ("." or NIL), then the mailbox name (quoted or atom).
+_LIST_RE = re.compile(r'^\([^)]*\)\s+(?:"[^"]*"|NIL)\s+(.+)$')
+
+
+def _parse_list_name(raw) -> str | None:
+    line = raw.decode(errors="replace") if isinstance(raw, (bytes, bytearray)) else str(raw)
+    line = line.strip()
+    m = _LIST_RE.match(line)
+    name = m.group(1).strip() if m else line.split()[-1]
+    if len(name) >= 2 and name[0] == '"' and name[-1] == '"':
+        name = name[1:-1]
+    return name or None
 
 
 def _decode(value: str | None) -> str:
@@ -113,9 +129,9 @@ class ImapReader:
             return ["INBOX"]
         names: list[str] = []
         for raw in data:
-            line = raw.decode(errors="replace") if isinstance(raw, bytes) else str(raw)
-            # Folder name is the last quoted token (or last space-delimited token).
-            name = line.split(' "')[-1].strip().strip('"') if '"' in line else line.split()[-1]
+            name = _parse_list_name(raw)
+            if not name:
+                continue
             if any(x in name.lower() for x in self.exclude_folders):
                 continue
             names.append(name)
