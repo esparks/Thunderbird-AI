@@ -178,8 +178,11 @@ the upcoming Sewer bill (2026-09-18). Past one-off bill events were left in plac
 
 ## 9. Open items / TODO
 
-- [ ] Build the standalone Python agent (IMAP read → Ollama extract → Calendar
-      write → Discord notify). No code written yet (per user instruction).
+- [x] Build the standalone Python agent (IMAP read → Ollama extract → Calendar
+      write → Discord notify). Implemented in `thunderbird_ai/` — see
+      `docs/SETUP.md`. Config/secrets in `config.env` (git-ignored). Reuses
+      existing Google OAuth (`credentials.json`/`token.json`) and Discord
+      webhooks. Ollama assumed already installed.
 - [ ] Create the 4 annual/semi-annual bills once exact months are confirmed.
 - [ ] Decide the precise "funding-paycheck-date" reminder mapping (esp. items
       funded by the prior month's paycheck: Rent, Anthropic) and add those
