@@ -97,8 +97,17 @@ insufficient. ~20 emails/day is a tiny, non-real-time workload.
 
 ## 5. Behavior decisions
 
-- **Notification routing:** split by type (bills → #finances; appts/vacations →
-  #personal).
+- **Categories & handling** (the agent classifies each email as one of):
+  - `doctor_appointment` → **create** Google Calendar event (Personal) + notify #personal
+  - `vacation` → **create** event (Personal) + notify #personal
+  - `bill_due` (a FUTURE bill you still must pay) → **notify #finances only**, no
+    event (the recurring Bills calendar is the source of truth; this surfaces
+    new/upcoming bills)
+  - `payment_confirmation` (a payment scheduled/processed/posted/paid) → **notify
+    #finances only**: "✅ no follow-up needed"
+  - `none` → ignored (marketing, social, deposits/income, shipping, etc.)
+- **Notification routing:** bills + payment confirmations → #finances;
+  appointments + vacations → #personal.
 - **Low-confidence handling:** still create the event, but flag the Discord
   notice with ⚠️ "please verify" so uncertain extractions get a human check.
 - **Poll interval:** every ~15 minutes.

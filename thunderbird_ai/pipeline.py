@@ -76,13 +76,11 @@ class Pipeline:
             today=today, email_date=mail.date, sender=mail.sender,
             subject=mail.subject, body=mail.body,
         )
-        if not ext.is_relevant or not ext.date:
+        if not ext.is_relevant:
             self.state.mark_message_processed(mail.message_id, mail.folder, ext.category, "skip", None)
             return
-
-        key = _event_key(ext)
-        if self.state.event_exists(key):
-            self.state.mark_message_processed(mail.message_id, mail.folder, ext.category, "duplicate", None)
+        if ext.category in Extraction.NEEDS_DATE and not ext.date:
+            self.state.mark_message_processed(mail.message_id, mail.folder, ext.category, "skip-nodate", None)
             return
 
         low = ext.confidence < self.cfg.confidence_threshold
@@ -95,30 +93,46 @@ class Pipeline:
             self.state.mark_message_processed(mail.message_id, mail.folder, ext.category, "dry_run", None)
             return
 
-        if ext.category == "bill":
-            self._do_bill(mail, ext, key, flag)
+        if ext.category == "bill_due":
+            self._do_bill_due(mail, ext, flag)
+        elif ext.category == "payment_confirmation":
+            self._do_payment_confirmation(mail, ext, flag)
         elif ext.category == "doctor_appointment":
-            self._do_appointment(mail, ext, key, flag)
+            self._do_appointment(mail, ext, flag)
         elif ext.category == "vacation":
-            self._do_vacation(mail, ext, key, flag)
+            self._do_vacation(mail, ext, flag)
 
-    def _do_bill(self, mail: Email, ext: Extraction, key: str, flag: str) -> None:
+    # --- notify-only (bills): the recurring Bills calendar is the source of truth ---
+    def _do_bill_due(self, mail: Email, ext: Extraction, flag: str) -> None:
         payee = ext.payee_or_provider or ext.title or "Bill"
         amount = _money(ext.amount)
-        summary = f"{payee} — {amount}".rstrip(" —") if amount else payee
-        desc = f"From email: {mail.subject}\nSender: {mail.sender}\n{ext.notes}".strip()
-        event = self.calendar.create_bill(self.cfg.gcal_bills_calendar_id, summary, ext.date, desc)
-        self.state.record_event(key, event["id"], self.cfg.gcal_bills_calendar_id, "bill", summary)
-        self.state.mark_message_processed(mail.message_id, mail.folder, "bill", "created", event["id"])
-        link = event.get("htmlLink", "")
+        summary = f"{payee} — {amount}" if amount else payee
+        self.state.mark_message_processed(mail.message_id, mail.folder, "bill_due", "notified", None)
         self.notifier.notify_bill(
-            f"{flag}\U0001f4b3 **Bill added:** {summary} due **{ext.date}**\n{link}"
+            f"{flag}\U0001f4b3 **Upcoming bill:** {summary} due **{ext.date}**"
+            f"\n(from: {mail.subject[:90]})"
         )
 
-    def _do_appointment(self, mail: Email, ext: Extraction, key: str, flag: str) -> None:
+    def _do_payment_confirmation(self, mail: Email, ext: Extraction, flag: str) -> None:
+        payee = ext.payee_or_provider or "Payment"
+        amount = _money(ext.amount)
+        label = ext.title or f"{payee} payment"
+        extra = " ".join(x for x in [amount, f"({ext.date})" if ext.date else ""] if x)
+        self.state.mark_message_processed(mail.message_id, mail.folder, "payment_confirmation", "notified", None)
+        self.notifier.notify_bill(
+            (f"{flag}✅ **Payment confirmed — no follow-up needed:** {label} {extra}").rstrip()
+            + f"\n(from: {mail.subject[:90]})"
+        )
+
+    # --- event-creating (appointments, vacations) ---
+    def _do_appointment(self, mail: Email, ext: Extraction, flag: str) -> None:
+        key = _event_key(ext)
+        if self.state.event_exists(key):
+            self.state.mark_message_processed(mail.message_id, mail.folder, "doctor_appointment", "duplicate", None)
+            return
         who = ext.payee_or_provider or ext.title or "Appointment"
         summary = ext.title or f"Appointment — {who}"
-        desc = f"From email: {mail.subject}\nSender: {mail.sender}\n{ext.notes}".strip()
+        desc = f"From email: {mail.subject}\nSender: {mail.sender}".strip()
         event = self.calendar.create_appointment(
             self.cfg.gcal_personal_calendar_id, summary, ext.date, ext.time, ext.location, desc
         )
@@ -131,9 +145,13 @@ class Pipeline:
             + (f" @ {ext.location}" if ext.location else "") + f"\n{link}"
         )
 
-    def _do_vacation(self, mail: Email, ext: Extraction, key: str, flag: str) -> None:
+    def _do_vacation(self, mail: Email, ext: Extraction, flag: str) -> None:
+        key = _event_key(ext)
+        if self.state.event_exists(key):
+            self.state.mark_message_processed(mail.message_id, mail.folder, "vacation", "duplicate", None)
+            return
         summary = ext.title or f"Vacation — {ext.location or 'trip'}"
-        desc = f"From email: {mail.subject}\nSender: {mail.sender}\n{ext.notes}".strip()
+        desc = f"From email: {mail.subject}\nSender: {mail.sender}".strip()
         event = self.calendar.create_vacation(
             self.cfg.gcal_personal_calendar_id, summary, ext.date, ext.end_date, ext.location, desc
         )

@@ -20,7 +20,8 @@ SCHEMA = {
     "properties": {
         "category": {
             "type": "string",
-            "enum": ["doctor_appointment", "bill", "vacation", "none"],
+            "enum": ["doctor_appointment", "vacation", "bill_due",
+                     "payment_confirmation", "none"],
         },
         "title": {"type": "string"},
         "payee_or_provider": {"type": "string"},
@@ -34,46 +35,50 @@ SCHEMA = {
     "required": ["category", "confidence"],
 }
 
-SYSTEM_PROMPT = """You extract calendar-worthy items from a single personal email.
-Classify the email as exactly ONE category:
+SYSTEM_PROMPT = """You classify a single personal email into exactly ONE category:
 
 - doctor_appointment: a CONFIRMED medical/dental/vet appointment for THIS person,
   with a specific future date (and usually a time). Not marketing from a clinic.
-- bill: a bill/invoice/statement with an amount and a specific FUTURE DUE date the
-  person still has to PAY. It is NOT a bill if money has already moved or is just
-  an alert: "payment posted/processed/received/scheduled/confirmed", "EFT
-  received", "direct debit withdrawal", "deposit", "person to person payment",
-  order confirmations, or receipts -> those are category none.
 - vacation: THIS person's own trip with real travel dates — a flight, hotel, or
-  rental BOOKING CONFIRMATION or itinerary. NOT travel ads, deal emails, price
-  alerts, or any email that merely mentions a place or date.
+  rental BOOKING CONFIRMATION or itinerary. NOT travel ads, deal emails, or price
+  alerts.
+- bill_due: a bill/invoice/statement this person still has to PAY, with an amount
+  and a FUTURE due date. This is the "you owe money, pay by X" case.
+- payment_confirmation: an email confirming that a payment this person owed was
+  SCHEDULED, PROCESSED, POSTED, or PAID (a loan, credit-card, utility, or medical
+  payment, or an autopay/direct-debit that pays a bill). The point is to confirm
+  it's handled so no follow-up is needed.
 - none: EVERYTHING else — newsletters, marketing, promotions, social/LinkedIn
-  notifications, order/shipping updates, receipts, password resets, statements
-  with no due date. When unsure, choose none.
+  notifications, order/shipping updates, password resets, price/listing alerts,
+  and money COMING IN to this person (deposits, "EFT received", refunds, person-
+  to-person money received). When unsure, choose none.
 
 Hard rules:
 - ALWAYS fill "title": a short human label, e.g. "National Grid electric bill",
-  "Dr. Patel dental cleaning", "Delta flight to Cancun". Never leave title empty.
-- Also fill "payee_or_provider" (the company/provider/airline).
-- Resolve relative dates using the given "email received date" and "today".
-  Dates are YYYY-MM-DD, times 24h HH:MM. Never invent a date — if there is no
-  concrete date, category is "none".
-- amount is a number of dollars (no symbols); 0 if unknown.
-- confidence 0.0-1.0 = how sure you are of the category AND the date. Use < 0.6
-  if the category is a guess.
+  "Fidelity card payment posted", "Dr. Patel cleaning". Never leave title empty.
+- Also fill "payee_or_provider".
+- date = the due date (bill_due), the appointment date, the vacation start, or the
+  date the payment was made (payment_confirmation). YYYY-MM-DD; times 24h HH:MM.
+  Never invent a date.
+- amount = dollars as a number; 0 if unknown.
+- confidence 0.0-1.0 for the category AND date; use < 0.6 if it's a guess.
 
 Examples:
-- "Your National Grid bill of $140.85 is due 10/10" -> {"category":"bill",
+- "Your National Grid bill of $140.85 is due 10/10" -> {"category":"bill_due",
   "title":"National Grid electric bill","payee_or_provider":"National Grid",
   "date":"2026-10-10","amount":140.85,"confidence":0.97}
-- "50% off flights to Europe this weekend!" -> {"category":"none","confidence":0.95}
-- "You're all set! Your reservation at Marriott, check-in Feb 13 2027" ->
-  {"category":"vacation","title":"Marriott stay","payee_or_provider":"Marriott",
-  "date":"2027-02-13","confidence":0.9}
-- "LinkedIn: you have 3 new notifications" -> {"category":"none","confidence":0.98}
-- "Fidelity Credit Card Payment Posted" -> {"category":"none","confidence":0.96}
-- "Direct debit withdrawal from your account" -> {"category":"none","confidence":0.95}
-- "AmeriCU Payment Scheduled Successfully" -> {"category":"none","confidence":0.95}
+- "Fidelity Credit Card Payment Posted" -> {"category":"payment_confirmation",
+  "title":"Fidelity card payment posted","payee_or_provider":"Fidelity",
+  "date":"2026-09-09","confidence":0.95}
+- "AmeriCU loan payment scheduled successfully" ->
+  {"category":"payment_confirmation","title":"AmeriCU loan payment scheduled",
+  "payee_or_provider":"AmeriCU","confidence":0.95}
+- "EFT received / deposit to your account" -> {"category":"none","confidence":0.95}
+- "50% off flights to Europe!" -> {"category":"none","confidence":0.95}
+- "Reservation at Marriott, check-in Feb 13 2027" -> {"category":"vacation",
+  "title":"Marriott stay","payee_or_provider":"Marriott","date":"2027-02-13",
+  "confidence":0.9}
+- "LinkedIn: 3 new notifications" -> {"category":"none","confidence":0.98}
 
 Return only the JSON object."""
 
@@ -91,9 +96,12 @@ class Extraction:
     confidence: float
     notes: str
 
+    RELEVANT = {"doctor_appointment", "vacation", "bill_due", "payment_confirmation"}
+    NEEDS_DATE = {"doctor_appointment", "vacation", "bill_due"}
+
     @property
     def is_relevant(self) -> bool:
-        return self.category in {"doctor_appointment", "bill", "vacation"}
+        return self.category in self.RELEVANT
 
 
 def _coerce(data: dict) -> Extraction:
