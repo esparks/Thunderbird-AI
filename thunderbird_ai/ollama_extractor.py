@@ -30,7 +30,6 @@ SCHEMA = {
         "amount": {"type": "number"},
         "location": {"type": "string"},
         "confidence": {"type": "number"},
-        "notes": {"type": "string"},
     },
     "required": ["category", "confidence"],
 }
@@ -40,8 +39,11 @@ Classify the email as exactly ONE category:
 
 - doctor_appointment: a CONFIRMED medical/dental/vet appointment for THIS person,
   with a specific future date (and usually a time). Not marketing from a clinic.
-- bill: a bill/invoice/statement with an amount and a specific DUE date the person
-  must pay. Not a receipt for something already paid, not an order confirmation.
+- bill: a bill/invoice/statement with an amount and a specific FUTURE DUE date the
+  person still has to PAY. It is NOT a bill if money has already moved or is just
+  an alert: "payment posted/processed/received/scheduled/confirmed", "EFT
+  received", "direct debit withdrawal", "deposit", "person to person payment",
+  order confirmations, or receipts -> those are category none.
 - vacation: THIS person's own trip with real travel dates — a flight, hotel, or
   rental BOOKING CONFIRMATION or itinerary. NOT travel ads, deal emails, price
   alerts, or any email that merely mentions a place or date.
@@ -69,6 +71,9 @@ Examples:
   {"category":"vacation","title":"Marriott stay","payee_or_provider":"Marriott",
   "date":"2027-02-13","confidence":0.9}
 - "LinkedIn: you have 3 new notifications" -> {"category":"none","confidence":0.98}
+- "Fidelity Credit Card Payment Posted" -> {"category":"none","confidence":0.96}
+- "Direct debit withdrawal from your account" -> {"category":"none","confidence":0.95}
+- "AmeriCU Payment Scheduled Successfully" -> {"category":"none","confidence":0.95}
 
 Return only the JSON object."""
 
@@ -96,6 +101,11 @@ def _coerce(data: dict) -> Extraction:
         v = data.get(key, "")
         return str(v).strip() if v is not None else ""
 
+    def d(key: str) -> str:
+        # Normalize any ISO datetime the model returns down to YYYY-MM-DD.
+        v = s(key)
+        return v.split("T")[0][:10] if "T" in v else v
+
     try:
         amount = float(data.get("amount") or 0)
     except (TypeError, ValueError):
@@ -109,9 +119,9 @@ def _coerce(data: dict) -> Extraction:
         category=s("category") or "none",
         title=s("title"),
         payee_or_provider=s("payee_or_provider"),
-        date=s("date"),
+        date=d("date"),
         time=s("time"),
-        end_date=s("end_date"),
+        end_date=d("end_date"),
         amount=amount,
         location=s("location"),
         confidence=max(0.0, min(1.0, confidence)),
