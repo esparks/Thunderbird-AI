@@ -89,8 +89,9 @@ class Pipeline:
         flag = "⚠️ *low confidence — please verify* " if low else ""
 
         if self.cfg.dry_run:
-            log.info("[DRY_RUN] would create %s: %s on %s (conf %.2f)",
-                     ext.category, ext.title or ext.payee_or_provider, ext.date, ext.confidence)
+            log.info("[DRY_RUN] %s | '%s' (%s) | %s | conf %.2f | from: %.90s",
+                     ext.category, ext.title, ext.payee_or_provider, ext.date,
+                     ext.confidence, mail.subject)
             self.state.mark_message_processed(mail.message_id, mail.folder, ext.category, "dry_run", None)
             return
 
