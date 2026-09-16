@@ -150,7 +150,7 @@ class OllamaExtractor:
             f"email received date: {email_date}\n"
             f"from: {sender}\n"
             f"subject: {subject}\n\n"
-            f"body:\n{body[:4000]}"
+            f"body:\n{body[:2000]}"
         )
         payload = {
             "model": self.model,
@@ -161,7 +161,9 @@ class OllamaExtractor:
             "stream": False,
             "format": SCHEMA,
             "keep_alive": "30m",  # keep the model loaded between emails
-            "options": {"temperature": 0, "num_predict": 400},
+            # num_ctx caps context so a big email can't balloon prompt-eval time
+            # on a CPU-only box; num_predict caps the (small) JSON output.
+            "options": {"temperature": 0, "num_predict": 300, "num_ctx": 4096},
         }
         resp = requests.post(
             f"{self.host}/api/chat", json=payload, timeout=self.timeout
